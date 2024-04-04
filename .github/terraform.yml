@@ -1,0 +1,47 @@
+name: Terraform
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+
+  workflow_dispatch:
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2.0.2
+        with:
+          terraform_version: 1.1.9
+          terraform_wrapper: false
+
+      # - name: Creating Certificates
+      #   run: |
+      #     certiTemp='${{ secrets.CERTIFICATE}}'
+      #     echo $(certiTemp) >> self-signed-certificate.crt
+      #     sudo cp self-signed-certificate.crt /usr/local/share/ca-certificates/terraform.crt
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Plan Terraform
+        id: plan
+        continue-on-error: true
+        env:
+          GRAFANA_AUTH: ${{ secrets.GRAFANA_AUTH_COMPANY}}
+        run: TF_VAR_grafana_auth=$GRAFANA_AUTH terraform plan -input=false -no-color
+
+      - name: Apply Terraform
+        if: github.ref == 'refs/heads/main'
+        id: apply
+        continue-on-error: true
+        env:
+          GRAFANA_AUTH: ${{ secrets.GRAFANA_AUTH_COMPANY }}
+        run: TF_VAR_grafana_auth=$GRAFANA_AUTH terraform apply -auto-approve
